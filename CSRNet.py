@@ -60,7 +60,7 @@ class CSRNet(nn.Module):
         x = self.backend(x)
         return x
 
-inputX = torch.randn(3,3,240,240)
-model = CSRNet('model.json')
-out = model(inputX)
-print("TEST")
+# inputX = torch.randn(3,3,240,240)
+# model = CSRNet('model.json')
+# out = model(inputX)
+# print("TEST")
