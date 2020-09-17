@@ -5,6 +5,7 @@ import datetime
 from CSRNet import CSRNet
 import torchvision.transforms as TF
 from PIL import Image
+import cv2
 
 parser = argparse.ArgumentParser('CSRNet training tool')
 parser.add_argument('-in','--input',required=True,type=str,help="image input")
@@ -48,16 +49,21 @@ if __name__ == "__main__":
     ])
 
     img = Image.open(args.input)
-    img = inp_transform(img)
+    inp = inp_transform(img)
     if args.cuda:
         device = torch.device('cuda')
         model.cuda()
-        inp = img.to(device)
+        inp = inp.to(device)
     else:
         device = torch.device('cpu')
 
     with open('{}/checkpoints.txt'.format(args.log_path)) as f:
         path_checkpoint = f.read().split('\n')[-1]
-        checkpoint = torch.load(path_checkpoint)
+        checkpoint = torch.load(path_checkpoint,map_location=device)
         model.load_state_dict(checkpoint['csrnet'])
     out = eval(args,model,inp,val_transform,device)
+    src2 = np.array(out.getdata()).reshape((224,224))
+    src2 = (src2*255/src2.max()).astype(np.uint8)
+    src2 = cv2.merge([src2,src2,src2])
+    cv2.imshow('out',src2)
+    cv2.waitKey(0)

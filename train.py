@@ -8,6 +8,8 @@ from CSRNet import CSRNet
 from data_manager import DataManager
 import torchvision.transforms as TF
 from torch.utils.tensorboard import SummaryWriter
+import shutil
+
 
 parser = argparse.ArgumentParser('CSRNet training tool')
 parser.add_argument('--train',required=True,type=str,help="Path to train folder")
@@ -44,8 +46,9 @@ def train(args,model,opt,euclidean_dist,writer,device):
             display_loss = np.append(display_loss,loss.item())
             opt.zero_grad()
             loss.backward()
+            a = list(model.parameters())
             opt.step()
-        writer.add_scalar('train/loss',display_loss.mean(),global_step=i)
+            writer.add_scalar('train/loss',display_loss.mean())
         if i % args.save_point == 0:
             current_time = datetime.datetime.now().strftime('%m%d%Y-%H%M%S')
             torch.save({
@@ -66,6 +69,8 @@ def train(args,model,opt,euclidean_dist,writer,device):
             
 
 if __name__ == "__main__":
+    if os.path.exists(args.log_path+'/CSRnet'):
+        shutil.rmtree(args.log_path+'/CSRnet')
     writer = SummaryWriter(args.log_path+'/CSRnet')
     model = CSRNet(args.model,use_pretrain=args.use_pretrain)
     opt = torch.optim.Adam(model.parameters(),lr=args.learning_rate)
@@ -75,14 +80,16 @@ if __name__ == "__main__":
         TF.ToTensor()
     ])
     inp_transform = TF.Compose([
-        TF.ToTensor()
+        TF.ToTensor(),
+        TF.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
     ])
     val_transform = TF.Compose([
         TF.ToPILImage(),
         TF.Resize(224)
     ])
     manager = DataManager(args.train,args.density,inp_transform,target_transforms)
-    loader = DataLoader(manager,batch_size=args.batchsize,shuffle=False,num_workers=args.worker)
+    loader = DataLoader(manager,batch_size=args.batchsize,shuffle=False)
 
     if args.cuda:
         device = torch.device('cuda')
