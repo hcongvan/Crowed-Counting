@@ -16,29 +16,33 @@ class DataManager(D.Dataset):
         ])
         self.transforms = transforms
         self.target_transfroms = target_transfroms
-        self.dset = h5py.File(target_hdf5,'r')['density']
         self.root_path = root
         self.files = os.listdir(root)
+        self.target_file = target_hdf5
+        with h5py.File(target_hdf5,'r') as f:
+            self.n = len(f['density'])
+            self.list_key = list(f['density'].keys())
 
     def __len__(self):
-        return len(self.dset.keys())
+        return self.n
     
     def __getitem__(self,idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
-        key = list(self.dset.keys())[idx]
+        key = self.list_key[idx]
         if not(key+'.jpg' in self.files):
             return None,None
-        target = self.dset[key][()]
-        target = target.squeeze(0)
-        target = Image.fromarray(target)
-        img = Image.open(os.path.join(self.root_path,key+'.jpg'))
-        _img = self.augmentaion(img)
-        _target = self.augmentaion(target)
-        inps = tuple(_img)
-        labels = tuple(_target)
-        if self.transforms is not None:
-            inps = [self.transforms(_img[i]) for i in range(len(_img))]
-        if self.target_transfroms is not None:
-            labels = [self.target_transfroms(_target[i]) for i in range(len(_target))]
-        return inps,labels
+        with h5py.File(self.target_file,'r') as f:
+            target = f['density'][key][()]
+            target = target.squeeze(0)
+            target = Image.fromarray(target)
+            img = Image.open(os.path.join(self.root_path,key+'.jpg'))
+            _img = self.augmentaion(img)
+            _target = self.augmentaion(target)
+            inps = tuple(_img)
+            labels = tuple(_target)
+            if self.transforms is not None:
+                inps = [self.transforms(_img[i]) for i in range(len(_img))]
+            if self.target_transfroms is not None:
+                labels = [self.target_transfroms(_target[i]) for i in range(len(_target))]
+            return inps,labels
