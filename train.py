@@ -1,4 +1,5 @@
 import torch
+import os
 from torch.utils.data import DataLoader
 import argparse
 import numpy as np
@@ -20,20 +21,23 @@ parser.add_argument('-lr','--learning_rate',default=0.01,type=float,help="learni
 parser.add_argument('-s','--save_point',default=10,type=int,help="define iteration to save checkpoint")
 parser.add_argument('-l','--log_path',default='./logs',type=str,help="define logs path to save checkpoint, performace train, parameters train")
 parser.add_argument('-bs','--batchsize',default=3,type=int,help="define number of batch size dataset")
+parser.add_argument('-wk','--worker',default=3,type=int,help="define number of worker to train")
+parser.add_argument('-kck','--keep_checkpoint',default=10,type=int,help="define number of checkpoint can store")
 args = parser.parse_args()
 
 
-def train(args,model,opt,euclidean_dist,writer):
+def train(args,model,opt,euclidean_dist,writer,device):
     model.train()
-    display_loss = np.array([])
+    
     for i in range(args.espisode):
+        display_loss = np.array([])
         for idx,(inps,labels) in enumerate(loader):
             inps = torch.cat(inps,dim=0)
             labels = torch.cat(labels,dim=0)
             # labels= labels.squeeze(dim=1)
             if args.cuda:
-                inps.to(device)
-                labels.to(device)
+                inps = inps.to(device)
+                labels = labels.to(device)
             
             y_pred = model(inps)
             loss = euclidean_dist(y_pred,labels)
@@ -42,14 +46,24 @@ def train(args,model,opt,euclidean_dist,writer):
             loss.backward()
             opt.step()
         writer.add_scalar('train/loss',display_loss.mean(),global_step=i)
-        if i % args.save_point:
+        if i % args.save_point == 0:
             current_time = datetime.datetime.now().strftime('%m%d%Y-%H%M%S')
             torch.save({
                 'csrnet':model.state_dict(),
                 'opt':opt.state_dict()
             },'{}/checkpoint-{}.pth'.format(args.log_path,current_time))
+            if not os.path.exists('{}/checkpoints.txt'.format(args.log_path)):
+                with open('{}/checkpoints.txt'.format(args.log_path),'w') as f:
+                    pass
+            with open('{}/checkpoints.txt'.format(args.log_path),'r') as f:
+                checkpoints = f.read().split('\n')
+                checkpoints.append('{}/checkpoint-{}.pth'.format(args.log_path,current_time))
+                if len(checkpoints)>args.keep_checkpoint:
+                    checkpoints[-args.keep_checkpoint:-1]
             with open('{}/checkpoints.txt'.format(args.log_path),'w') as f:
-                f.write('{}/checkpoint-{}.pth'.format(args.log_path,current_time))
+                for c in checkpoints:
+                    f.write('{}\n'.format(c))
+            
 
 if __name__ == "__main__":
     writer = SummaryWriter(args.log_path+'/CSRnet')
@@ -61,16 +75,14 @@ if __name__ == "__main__":
         TF.ToTensor()
     ])
     inp_transform = TF.Compose([
-        TF.ToTensor(),
-        TF.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
+        TF.ToTensor()
     ])
     val_transform = TF.Compose([
         TF.ToPILImage(),
         TF.Resize(224)
     ])
     manager = DataManager(args.train,args.density,inp_transform,target_transforms)
-    loader = DataLoader(manager,batch_size=args.batchsize,shuffle=False,num_workers=3)
+    loader = DataLoader(manager,batch_size=args.batchsize,shuffle=False,num_workers=args.worker)
 
     if args.cuda:
         device = torch.device('cuda')
@@ -85,4 +97,4 @@ if __name__ == "__main__":
             checkpoint = torch.load(path_checkpoint)
             model.load_state_dict(checkpoint['csrnet'])
             opt.load_state_dict(checkpoint['opt'])
-    train(args,model,opt,euclidean_dist,writer)
+    train(args,model,opt,euclidean_dist,writer,device)

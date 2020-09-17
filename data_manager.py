@@ -35,7 +35,7 @@ class DataManager(D.Dataset):
         with h5py.File(self.target_file,'r') as f:
             target = f['density'][key][()]
             target = target.squeeze(0)
-            target = Image.fromarray(target)
+            target = Image.fromarray(target.copy())
             img = Image.open(os.path.join(self.root_path,key+'.jpg'))
             _img = self.augmentaion(img)
             _target = self.augmentaion(target)
