@@ -53,7 +53,7 @@ def train(args,model,opt,euclidean_dist,writer):
 
 if __name__ == "__main__":
     writer = SummaryWriter(args.log_path+'/CSRnet')
-    model = CSRNet(args.model,use_pretrain=True)
+    model = CSRNet(args.model,use_pretrain=args.use_pretrain)
     opt = torch.optim.Adam(model.parameters(),lr=args.learning_rate)
     euclidean_dist = torch.nn.MSELoss(reduction='sum')
     target_transforms = TF.Compose([
