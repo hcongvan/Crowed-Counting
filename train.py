@@ -60,7 +60,11 @@ if __name__ == "__main__":
         TF.Resize(28),
         TF.ToTensor()
     ])
-    inp_transform = TF.ToTensor()
+    inp_transform = TF.Compose([
+        TF.ToTensor(),
+        TF.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+    ])
     val_transform = TF.Compose([
         TF.ToPILImage(),
         TF.Resize(224)
