@@ -25,11 +25,12 @@ args = parser.parse_args()
 
 def eval(args,model,inp,transfrom,device):
     model.eval()
-    
+    inp = inp.unsqueeze(0)
     if args.cuda:
-        inps = inps.to(device)
+        inp = inp.to(device)
     
-    y_pred = model(inps)
+    y_pred = model(inp)
+    y_pred = y_pred.squeeze(0).to(torch.device('cpu'))
     out = transfrom(y_pred)
     return out
     
@@ -38,15 +39,16 @@ def eval(args,model,inp,transfrom,device):
 if __name__ == "__main__":
     model = CSRNet(args.model,use_pretrain=args.use_pretrain)
     inp_transform = TF.Compose([
+        TF.Resize((224,224)),
         TF.ToTensor()
     ])
     val_transform = TF.Compose([
         TF.ToPILImage(),
-        TF.Resize(224)
+        TF.Resize((224,224))
     ])
 
     img = Image.open(args.input)
-    img = inp_transform(Image)
+    img = inp_transform(img)
     if args.cuda:
         device = torch.device('cuda')
         model.cuda()
@@ -54,8 +56,8 @@ if __name__ == "__main__":
     else:
         device = torch.device('cpu')
 
-    with open('{}/checkpoints.txt') as f:
-        path_checkpoint = f.read()
+    with open('{}/checkpoints.txt'.format(args.log_path)) as f:
+        path_checkpoint = f.read().split('\n')[-1]
         checkpoint = torch.load(path_checkpoint)
         model.load_state_dict(checkpoint['csrnet'])
     out = eval(args,model,inp,val_transform,device)
