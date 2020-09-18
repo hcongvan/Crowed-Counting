@@ -46,9 +46,8 @@ def train(args,model,opt,euclidean_dist,writer,device):
             display_loss = np.append(display_loss,loss.item())
             opt.zero_grad()
             loss.backward()
-            a = list(model.parameters())
             opt.step()
-            writer.add_scalar('train/loss',display_loss.mean())
+        writer.add_scalar('train/loss',display_loss.mean())
         if i % args.save_point == 0:
             current_time = datetime.datetime.now().strftime('%m%d%Y-%H%M%S')
             torch.save({
@@ -75,10 +74,6 @@ if __name__ == "__main__":
     model = CSRNet(args.model,use_pretrain=args.use_pretrain)
     opt = torch.optim.Adam(model.parameters(),lr=args.learning_rate)
     euclidean_dist = torch.nn.MSELoss(reduction='sum')
-    target_transforms = TF.Compose([
-        TF.Resize(28),
-        TF.ToTensor()
-    ])
     inp_transform = TF.Compose([
         TF.ToTensor(),
         TF.Normalize(mean=[0.485, 0.456, 0.406],
@@ -88,8 +83,8 @@ if __name__ == "__main__":
         TF.ToPILImage(),
         TF.Resize(224)
     ])
-    manager = DataManager(args.train,args.density,inp_transform,target_transforms)
-    loader = DataLoader(manager,batch_size=args.batchsize,shuffle=False)
+    manager = DataManager(args.train,args.density,inp_transform)
+    loader = DataLoader(manager,batch_size=args.batchsize,shuffle=False,num_workers=args.worker)
 
     if args.cuda:
         device = torch.device('cuda')

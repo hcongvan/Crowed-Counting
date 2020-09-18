@@ -31,9 +31,10 @@ def eval(args,model,inp,transfrom,device):
         inp = inp.to(device)
     
     y_pred = model(inp)
+    test1 = y_pred.max()
     y_pred = y_pred.squeeze(0).to(torch.device('cpu'))
-    out = transfrom(y_pred)
-    return out
+    # out = transfrom(y_pred)
+    return y_pred
     
             
 
@@ -62,8 +63,11 @@ if __name__ == "__main__":
         checkpoint = torch.load(path_checkpoint,map_location=device)
         model.load_state_dict(checkpoint['csrnet'])
     out = eval(args,model,inp,val_transform,device)
-    src2 = np.array(out.getdata()).reshape((224,224))
+    tt = out.sum().detach()
+    out = out.squeeze(0)
+    src2 = np.array(out.detach().numpy())
     src2 = (src2*255/src2.max()).astype(np.uint8)
-    src2 = cv2.merge([src2,src2,src2])
+    src2 = cv2.resize(src2,(224,224))
+    # src2 = cv2.merge([src2,src2,src2])
     cv2.imshow('out',src2)
     cv2.waitKey(0)
