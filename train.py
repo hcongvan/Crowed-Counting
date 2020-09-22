@@ -57,7 +57,7 @@ def train(args,model,opt,euclidean_dist,writer,device):
             writer.add_scalar('train/grads_tt',grs[idx],global_step=i*n + idx)
             writer.add_scalar('train/loss',display_loss[idx],global_step=i*n + idx)
         if i % args.save_point == 0:
-            save(model,opt,args.logs_path)
+            save(model,opt,args.log_path)
 
 def save(model,optimize,logs_path,keep=10,name='checkpoint'):
     current_time = datetime.datetime.now().strftime('%m%d%Y-%H%M%S')
@@ -70,7 +70,8 @@ def save(model,optimize,logs_path,keep=10,name='checkpoint'):
     if not os.path.exists('{}/{}.txt'.format(logs_path,name)):
         with open('{}/{}.txt'.format(logs_path,name),'w') as f:
             pass
-    ## check 
+    ## check number checkpoint over %keep% yet! if we keep %keep% latest checkpoint 
+    # and remove early checkpoints 
     checkpoints = []
     with open('{}/{}.txt'.format(logs_path,name),'r') as f:
         _checkpoints = f.read().split('\n')
@@ -84,6 +85,7 @@ def save(model,optimize,logs_path,keep=10,name='checkpoint'):
                     os.remove(f)
                 except:
                     pass
+    # write file %name%.txt to make sure latest checkpoint will load easy in future
     with open('{}/{}.txt'.format(logs_path,name),'w') as f:
         for c in checkpoints:
             f.write('{}\n'.format(c))
