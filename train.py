@@ -56,6 +56,7 @@ def train(args,model,opt,euclidean_dist,writer,device):
         for idx in range(n):
             writer.add_scalar('train/grads_tt',grs[idx],global_step=i*n + idx)
             writer.add_scalar('train/loss',display_loss[idx],global_step=i*n + idx)
+        print("iteration: {}, grads_tt: {}, loss_avg: {}".format(i,grs.mean(),display_loss.mean()),end='\r',flush=True)
         if i % args.save_point == 0:
             save(model,opt,args.log_path)
 
