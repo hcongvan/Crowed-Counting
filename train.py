@@ -19,7 +19,7 @@ parser.add_argument('--density',required=True,type=str,help="Path to file densit
 parser.add_argument('--cuda',default=False,action="store_true",help="set flag to use cpu or gpu")
 parser.add_argument('--checkpoint',default=False,action="store_true",help="continue train from checkpoint")
 parser.add_argument('-i','--espisode',default=50,type=int,help="max iteration to train")
-parser.add_argument('-lr','--learning_rate',default=0.01,type=float,help="learning rate coefficient")
+parser.add_argument('-lr','--learning_rate',default=1e-7,type=float,help="learning rate coefficient")
 parser.add_argument('-s','--save_point',default=10,type=int,help="define iteration to save checkpoint")
 parser.add_argument('-l','--log_path',default='./logs',type=str,help="define logs path to save checkpoint, performace train, parameters train")
 parser.add_argument('-bs','--batchsize',default=3,type=int,help="define number of batch size dataset")
@@ -33,7 +33,9 @@ def train(args,model,opt,euclidean_dist,writer,device):
     
     for i in range(args.espisode):
         display_loss = np.array([])
+        grs = np.array([])
         for idx,(inps,labels) in enumerate(loader):
+            tt = 0
             inps = torch.cat(inps,dim=0)
             labels = torch.cat(labels,dim=0)
             # labels= labels.squeeze(dim=1)
@@ -46,8 +48,14 @@ def train(args,model,opt,euclidean_dist,writer,device):
             display_loss = np.append(display_loss,loss.item())
             opt.zero_grad()
             loss.backward()
+            for a in model.parameters():
+                tt = (tt + a.grad.sum()).detach()
+            grs = np.append(grs,tt.item())
             opt.step()
-        writer.add_scalar('train/loss',display_loss.mean())
+        n = grs.shape[0]
+        for idx in range(n):
+            writer.add_scalar('train/grads_tt',grs[idx],global_step=i*n + idx)
+            writer.add_scalar('train/loss',display_loss[idx],global_step=i*n + idx)
         if i % args.save_point == 0:
             current_time = datetime.datetime.now().strftime('%m%d%Y-%H%M%S')
             torch.save({
@@ -72,7 +80,7 @@ if __name__ == "__main__":
         shutil.rmtree(args.log_path+'/CSRnet')
     writer = SummaryWriter(args.log_path+'/CSRnet')
     model = CSRNet(args.model,use_pretrain=args.use_pretrain)
-    opt = torch.optim.Adam(model.parameters(),lr=args.learning_rate)
+    opt = torch.optim.SGD(model.parameters(),lr=args.learning_rate,momentum=0.9)
     euclidean_dist = torch.nn.MSELoss(reduction='sum')
     inp_transform = TF.Compose([
         TF.ToTensor(),
