@@ -57,28 +57,40 @@ def train(args,model,opt,euclidean_dist,writer,device):
             writer.add_scalar('train/grads_tt',grs[idx],global_step=i*n + idx)
             writer.add_scalar('train/loss',display_loss[idx],global_step=i*n + idx)
         if i % args.save_point == 0:
-            current_time = datetime.datetime.now().strftime('%m%d%Y-%H%M%S')
-            torch.save({
-                'csrnet':model.state_dict(),
-                'opt':opt.state_dict()
-            },'{}/checkpoint-{}.pth'.format(args.log_path,current_time))
-            if not os.path.exists('{}/checkpoints.txt'.format(args.log_path)):
-                with open('{}/checkpoints.txt'.format(args.log_path),'w') as f:
-                    pass
-            with open('{}/checkpoints.txt'.format(args.log_path),'r') as f:
-                checkpoints = f.read().split('\n')
-                checkpoints.append('{}/checkpoint-{}.pth'.format(args.log_path,current_time))
-                if len(checkpoints)>args.keep_checkpoint:
-                    checkpoints[-args.keep_checkpoint:-1]
-            with open('{}/checkpoints.txt'.format(args.log_path),'w') as f:
-                for c in checkpoints:
-                    f.write('{}\n'.format(c))
-            
+            save(model,opt,args.logs_path)
 
+def save(model,optimize,logs_path,keep=10,name='checkpoint'):
+    current_time = datetime.datetime.now().strftime('%m%d%Y-%H%M%S')
+    ## Save checkpoint model and optimizer
+    torch.save({
+        'csrnet':model.state_dict(),
+        'opt':opt.state_dict()
+    },'{}/{}-{}.pth'.format(logs_path,name,current_time))    
+    ## check %name%.txt existing in %logs_path% if it not exist create one
+    if not os.path.exists('{}/{}.txt'.format(logs_path,name)):
+        with open('{}/{}.txt'.format(logs_path,name),'w') as f:
+            pass
+    ## check 
+    checkpoints = []
+    with open('{}/{}.txt'.format(logs_path,name),'r') as f:
+        _checkpoints = f.read().split('\n')
+        checkpoints = [x for x in _checkpoints if x != '']
+        checkpoints.append('{}/{}-{}.pth'.format(logs_path,name,current_time))
+        if len(checkpoints)>keep:
+            checkpoints = checkpoints[-keep:]
+            ckp_rm = checkpoints[:-keep]
+            for f in ckp_rm:
+                try:
+                    os.remove(f)
+                except:
+                    pass
+    with open('{}/{}.txt'.format(logs_path,name),'w') as f:
+        for c in checkpoints:
+            f.write('{}\n'.format(c))
+    
 if __name__ == "__main__":
-    if os.path.exists(args.log_path+'/CSRnet'):
-        shutil.rmtree(args.log_path+'/CSRnet')
-    writer = SummaryWriter(args.log_path+'/CSRnet')
+    current_time = datetime.datetime.now().strftime('%m%d%Y-%H%M%S')
+    writer = SummaryWriter(args.log_path+'/CSRnet-train-{}'.format(current_time))
     model = CSRNet(args.model,use_pretrain=args.use_pretrain)
     opt = torch.optim.SGD(model.parameters(),lr=args.learning_rate,momentum=0.9)
     euclidean_dist = torch.nn.MSELoss(reduction='sum')
