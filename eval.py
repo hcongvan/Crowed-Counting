@@ -9,6 +9,9 @@ import torchvision.transforms as TF
 from torch.utils.tensorboard import SummaryWriter
 from PIL import Image
 import cv2
+import uuid
+import os
+import shutil
 
 parser = argparse.ArgumentParser('CSRNet training tool')
 parser.add_argument('--test',required=True,type=str,help="path to images test")
@@ -24,21 +27,39 @@ args = parser.parse_args()
 
 def eval(args,model,loader,transfrom,device):
     model = model.eval()
-    display_loss = np.array([])
-    for idx,(inps,labels) in enumerate(loader):
-        inps = torch.cat(inps,dim=0)
-        labels = torch.cat(labels,dim=0)
-        # labels= labels.squeeze(dim=1)
+    loss_density = np.array([])
+    loss_count = np.array([])
+    if os.path.exists('./results'):
+        shutil.rmtree('./results')
+    else:
+        os.mkdir('./results')
+    
+    for idx,(imgs,inps,labels) in enumerate(loader):
         if args.cuda:
             inps = inps.to(device)
             labels = labels.to(device)
         
         y_pred = model(inps)
-        loss = euclidean_dist(y_pred,labels).detach()
-        out = y_pred.detach()
-        display_loss = np.append(display_loss,loss.item())
-        print("loss : {}".format(loss.item()),end='\r')
-    print("avg_loss: {}\n".format(display_loss.mean()))
+        y_pred_tt = y_pred.sum().detach()
+        groud_truth = labels.sum()
+        loss1 = euclidean_dist(y_pred_tt,groud_truth)
+        loss2 = euclidean_dist(y_pred,labels).detach()
+
+        src2 = []
+        _src2 = y_pred.detach().numpy()
+        for img in _src2:
+            _img = (img*255/img.max()).astype(np.uint8).squeeze(0)
+            _img = cv2.resize(_img,(1280,720))
+            src2.append(cv2.merge([_img,_img,_img]))
+        src1 = imgs.numpy()
+        for idx,density in enumerate(src2):
+            img = cv2.addWeighted(density,0.7,src1[idx],0.3,0.3) 
+            cv2.imwrite('results/{}_bend.jpg'.format(str(uuid.uuid4())),img)
+
+        loss_density = np.append(loss_density,loss2.item())
+        loss_count = np.append(loss_count,loss1.item())
+        print("loss_density : {} | loss_count: {}".format(loss2.item(),loss1.item()),end='\r')
+    print("avg_loss_density: {} | avg_loss_count: {} \n".format(loss_density.mean(),loss_count.mean()))
     
 
     
@@ -59,7 +80,7 @@ if __name__ == "__main__":
         TF.Resize((224,224))
     ])
 
-    manager = DataManager(args.test,args.density,inp_transform)
+    manager = DataManager(args.test,args.density,mode='eval',transforms=inp_transform)
     loader = DataLoader(manager,batch_size=args.batchsize,shuffle=False)
     if args.cuda:
         device = torch.device('cuda')
