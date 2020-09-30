@@ -12,23 +12,24 @@ import cv2
 import uuid
 import os
 import shutil
+import json
+from ROI_Settings import ROI
 
 parser = argparse.ArgumentParser('CSRNet training tool')
 parser.add_argument('--input',required=True,type=str,help="path to images test")
+parser.add_argument('-r','--roi',default='config.json',type=str,help="path to RoI setting")
 parser.add_argument('-cfg','--model',required=True,default='config.json',type=str,help="path to cfg model CSRNET")
 parser.add_argument('--cuda',default=False,action="store_true",help="set flag to use cpu or gpu")
 parser.add_argument('--checkpoint',default=False,action="store_true",help="continue train from checkpoint")
 parser.add_argument('-l','--log_path',default='./logs',type=str,help="define logs path to save checkpoint, performace train, parameters train")
-parser.add_argument('-bs','--batchsize',default=3,type=int,help="define number of batch size dataset")
-parser.add_argument('-wk','--worker',default=3,type=int,help="define number of worker to train")
 args = parser.parse_args()
 
 
-def eval(args,model,reader,device):
+def eval(args,model,reader,setting,device):
     fps = reader.get(cv2.CAP_PROP_FPS)
     H = int(reader.get(cv2.CAP_PROP_FRAME_HEIGHT))
     W = int(reader.get(cv2.CAP_PROP_FRAME_WIDTH))
-    writer = cv2.VideoWriter('results/{}'.format(str(uuid.uuid4())), cv2.VideoWriter_fourcc(*"MP4V"), fps, (W, H),True)
+    writer = cv2.VideoWriter('./results/{}.mp4'.format(str(uuid.uuid4())), cv2.VideoWriter_fourcc(*'MP4V'), fps, (W, H),True)
     model = model.eval()
     transforms = TF.Compose([
         TF.ToTensor(),
@@ -38,18 +39,23 @@ def eval(args,model,reader,device):
     i = 0
     n = reader.get(cv2.CAP_PROP_FRAME_COUNT)
     while(i < n):
+        if args.cuda:
+            torch.cuda.empty_cache()
         # reader.set(cv2.CAP_PROP_POS_FRAMES ,i)
         ret, frame = reader.read()
         if ret:
             origin = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
-            img = Image.fromarray(origin)
+            image = setting.removeOutBox(origin,args.rois)
+            img = Image.fromarray(image)
             inps = transforms(img)
             inps = inps.unsqueeze(0)
+            if args.cuda:
+                inps = inps.to(device)
             y_pred = model(inps)
             y_pred_tt = y_pred.sum().detach().item()
             
 
-        _img = y_pred.squeeze(0).permute(1,2,0).detach().numpy()
+        _img = y_pred.squeeze(0).permute(1,2,0).detach().to(torch.device('cpu')).numpy()
         _img = (_img*255/_img.max()).astype(np.uint8)
         _img = cv2.resize(_img,(W,H))
         _img = cv2.merge([_img,_img,_img])
@@ -76,9 +82,12 @@ if __name__ == "__main__":
         model.cuda()
     else:
         device = torch.device('cpu')
-
+    with open(args.roi) as f:
+        rois = json.load(f).get('settings').get('rois')
+    args.rois = rois
+    setting = ROI()
     with open('{}/checkpoint.txt'.format(args.log_path)) as f:
         path_checkpoint = f.read().split('\n')[-1]
         checkpoint = torch.load(path_checkpoint,map_location=device)
         model.load_state_dict(checkpoint['csrnet'])
-    eval(args,model,reader,device)
+    eval(args,model,reader,setting,device)
