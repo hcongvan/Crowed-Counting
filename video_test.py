@@ -17,7 +17,6 @@ from ROI_Settings import ROI
 
 parser = argparse.ArgumentParser('CSRNet training tool')
 parser.add_argument('--input',required=True,type=str,help="path to images test")
-parser.add_argument('-r','--roi',default='config.json',type=str,help="path to RoI setting")
 parser.add_argument('-cfg','--model',required=True,default='config.json',type=str,help="path to cfg model CSRNET")
 parser.add_argument('--cuda',default=False,action="store_true",help="set flag to use cpu or gpu")
 parser.add_argument('--checkpoint',default=False,action="store_true",help="continue train from checkpoint")
@@ -29,7 +28,8 @@ def eval(args,model,reader,setting,device):
     fps = reader.get(cv2.CAP_PROP_FPS)
     H = int(reader.get(cv2.CAP_PROP_FRAME_HEIGHT))
     W = int(reader.get(cv2.CAP_PROP_FRAME_WIDTH))
-    writer = cv2.VideoWriter('./results/{}.mp4'.format(str(uuid.uuid4())), cv2.VideoWriter_fourcc(*'MP4V'), fps, (W, H),True)
+    writer = cv2.VideoWriter(os.path.join(args.root,'debug_{}'.format(args.file)), 
+                            cv2.VideoWriter_fourcc(*'MP4V'), fps, (W, H),True)
     model = model.eval()
     transforms = TF.Compose([
         TF.ToTensor(),
@@ -76,18 +76,25 @@ if __name__ == "__main__":
     # current_time = datetime.datetime.now().strftime('%m%d%Y-%H%M%S')
     # writer = SummaryWriter(args.log_path+'/CSRnet-eval-{}'.format(current_time))
     model = CSRNet(args.model)
-    reader = cv2.VideoCapture(args.input)
+    
     if args.cuda:
         device = torch.device('cuda')
         model.cuda()
     else:
         device = torch.device('cpu')
-    with open(args.roi) as f:
-        rois = json.load(f).get('settings').get('rois')
-    args.rois = rois
-    setting = ROI()
     with open('{}/checkpoint.txt'.format(args.log_path)) as f:
         path_checkpoint = f.read().split('\n')[-1]
         checkpoint = torch.load(path_checkpoint,map_location=device)
         model.load_state_dict(checkpoint['csrnet'])
-    eval(args,model,reader,setting,device)
+
+    for root, dir, files in os.walk(args.input):
+        for f in files:
+            if os.path.splitext(f)[-1] == '.mp4':
+                reader = cv2.VideoCapture(os.path.join(root,f))
+                with open(os.path.join(root,'config.json')) as f:
+                    rois = json.load(f).get('settings').get('rois')
+                args.rois = rois
+                args.root = root
+                args.file = f
+                setting = ROI()
+                eval(args,model,reader,setting,device)
