@@ -19,7 +19,6 @@ parser = argparse.ArgumentParser('CSRNet training tool')
 parser.add_argument('--input',required=True,type=str,help="path to images test")
 parser.add_argument('-cfg','--model',required=True,default='config.json',type=str,help="path to cfg model CSRNET")
 parser.add_argument('--cuda',default=False,action="store_true",help="set flag to use cpu or gpu")
-parser.add_argument('--checkpoint',default=False,action="store_true",help="continue train from checkpoint")
 parser.add_argument('-l','--log_path',default='./logs',type=str,help="define logs path to save checkpoint, performace train, parameters train")
 args = parser.parse_args()
 
@@ -63,8 +62,8 @@ def eval(args,model,reader,setting,device):
         cv2.putText(denisity, 'count:{}'.format(y_pred_tt), (5, 20),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255),
                                1)
-        # cv2.imshow('result',denisity)
-        # cv2.waitKey(0)
+        cv2.imshow('result',denisity)
+        cv2.waitKey(0)
         writer.write(denisity)
         i += 1
         # print(reader.get(cv2.CAP_PROP_POS_FRAMES))
