@@ -1,8 +1,13 @@
-import tensorflow as tf
+import torch
 import numpy as np
-from fcrn import FCRN
+import torch.utils.data.DataLoader as DataLoader
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
 
-inp = np.random.rand(1,576,576,1)
-model = FCRN((1,576,576,1))
-y = model(inp)
-print('test')
+tf = transforms.Compose([
+    transforms.Resize((448,448)),
+    transforms.TenCrop((224,224)),
+    transforms.ToTensor()])
+
+inp = datasets.ImageFolder('/home/vanhc/Projects/AI_Dataset/Dataset/VOVTraffic/',transform=tf)
+tar =
