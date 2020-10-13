@@ -51,7 +51,6 @@ for roots, dirs, files in os.walk(args.path):
                     mask += _mask
 
             image1 = None
-            # mask = cv2.GaussianBlur(mask,(5,5),sigmaX=4,borderType=cv2.BORDER_CONSTANT)
             image1 = cv2.normalize(mask, image1, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
             img2 = cv2.applyColorMap(image1,cv2.COLORMAP_JET)
             # cv2.imshow(filename,img2)

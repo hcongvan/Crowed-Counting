@@ -106,7 +106,7 @@ if __name__ == "__main__":
         TF.ToPILImage(),
         TF.Resize(224)
     ])
-    manager = DataManager(args.train,args.density,inp_transform)
+    manager = DataManager(args.train,args.density,mode='train',transforms=inp_transform)
     loader = DataLoader(manager,batch_size=args.batchsize,shuffle=False,num_workers=args.worker)
 
     if args.cuda:
