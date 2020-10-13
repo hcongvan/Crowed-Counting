@@ -3,3 +3,4 @@ __pycache__/
 logs/
 vov_dataset*
 *.jpg
+*.mp4
