@@ -45,7 +45,7 @@ def eval(args,model,loader,transfrom,device):
         loss2 = euclidean_dist(y_pred,labels).detach()
 
         src2 = []
-        _src2 = y_pred.detach().numpy()
+        _src2 = y_pred.to(torch.device('cpu')).detach().numpy()
         for img in _src2:
             _img = (img*255/img.max()).astype(np.uint8).squeeze(0)
             _img = cv2.resize(_img,(1280,720))

@@ -117,7 +117,7 @@ if __name__ == "__main__":
         device = torch.device('cpu')
 
     if args.checkpoint:
-        with open('{}/checkpoints.txt'.format(args.log_path)) as f:
+        with open('{}/checkpoint.txt'.format(args.log_path)) as f:
             path_checkpoint = f.read().split('\n')[-1]
             checkpoint = torch.load(path_checkpoint)
             model.load_state_dict(checkpoint['csrnet'])
