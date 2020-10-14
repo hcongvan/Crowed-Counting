@@ -8,6 +8,7 @@ import scipy.ndimage as scimg
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p','--path', required=True, type=str, help='path to folder dataset')
+parser.add_argument('-s','--sigma',default=False,action='store_true',help='flag ')
 parser.add_argument('-o','--out', default='dataset.hdf5', type=str, help='path to folder dataset')
 args = parser.parse_args()
 
@@ -35,21 +36,27 @@ for roots, dirs, files in os.walk(args.path):
             mask = np.zeros((img.shape[:2]))
             if len(pos)>0:
                 for idx,(x,y) in enumerate(pos):
-                    _mask = np.zeros((img.shape[:2]))
-                    # x = int(x*rW)
-                    # y = int(y*rH)
-                    _mask[y,x] = 1
-                    _pos = pos.copy()
-                    del _pos[idx]
-                    data = torch.Tensor(_pos)
-                    test = torch.Tensor([[x,y]])
-                    dist = torch.norm(data - test,dim=1,p=None)
-                    k = dist.topk(3,largest=False)
-                    sigma = k.values.mean().item()
-                    # _mask = scimg.filters.gaussian_filter(_mask,sigma,mode='constant')
-                    _mask = cv2.GaussianBlur(_mask,(0,0),sigmaX=sigma,sigmaY=sigma,borderType=cv2.BORDER_CONSTANT) # same performance with scipy.ndimg
-                    mask += _mask
-
+                    if args.sigma:
+                        # using variant sigma for generate density map
+                        _mask = np.zeros((img.shape[:2]))
+                        # x = int(x*rW)
+                        # y = int(y*rH)
+                        _mask[y,x] = 1
+                        _pos = pos.copy()
+                        del _pos[idx]
+                        data = torch.Tensor(_pos)
+                        test = torch.Tensor([[x,y]])
+                        dist = torch.norm(data - test,dim=1,p=None)
+                        k = dist.topk(3,largest=False)
+                        sigma = k.values.mean().item()
+                        # _mask = scimg.filters.gaussian_filter(_mask,sigma,mode='constant')
+                        _mask = cv2.GaussianBlur(_mask,(0,0),sigmaX=sigma,sigmaY=sigma,borderType=cv2.BORDER_CONSTANT) # same performance with scipy.ndimg
+                        mask += _mask
+                    else:
+                        #using constant sigma for generate density map
+                        mask[y,x] = 1          
+            if not args.sigma:
+                mask = cv2.GaussianBlur(mask,(17,17),sigmaX=4,borderType=cv2.BORDER_CONSTANT)
             image1 = None
             image1 = cv2.normalize(mask, image1, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
             img2 = cv2.applyColorMap(image1,cv2.COLORMAP_JET)
