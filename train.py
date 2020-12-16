@@ -106,7 +106,7 @@ if __name__ == "__main__":
         TF.ToPILImage(),
         TF.Resize(224)
     ])
-    manager = DataManager(args.train,args.density,inp_transform)
+    manager = DataManager(args.train,args.density,mode='train',transforms=inp_transform)
     loader = DataLoader(manager,batch_size=args.batchsize,shuffle=False,num_workers=args.worker)
 
     if args.cuda:
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         device = torch.device('cpu')
 
     if args.checkpoint:
-        with open('{}/checkpoints.txt'.format(args.log_path)) as f:
+        with open('{}/checkpoint.txt'.format(args.log_path)) as f:
             path_checkpoint = f.read().split('\n')[-1]
             checkpoint = torch.load(path_checkpoint)
             model.load_state_dict(checkpoint['csrnet'])
